@@ -321,6 +321,9 @@ class BaseModel extends Model
             elseif($this->company->verifactuEnabled()) {
                 $this->service()->sendVerifactu();
             }
+            elseif($this->company->cfeUyEnabled()) {
+                $this->service()->sendCfeUy();
+            }
         }
 
     }

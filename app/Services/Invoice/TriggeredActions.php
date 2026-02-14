@@ -62,6 +62,9 @@ class TriggeredActions extends AbstractService
             if ($this->invoice->company->verifactuEnabled() && !$this->invoice->hasSentAeat()) {
                 $this->invoice->invitations()->update(['email_error' => 'primed']); // Flag the invitations as primed for AEAT submission
                 $this->invoice->service()->sendVerifactu();
+            } elseif ($this->invoice->company->cfeUyEnabled() && !$this->invoice->hasSentAeat()) {
+                $this->invoice->invitations()->update(['email_error' => 'primed']);
+                $this->invoice->service()->sendCfeUy();
             } else {
                 $this->sendEmail();
             }
@@ -95,6 +98,8 @@ class TriggeredActions extends AbstractService
                 \App\Services\EDocument\Jobs\SendEDocument::dispatch(get_class($this->invoice), $this->invoice->id, $this->invoice->company->db);
             } elseif ($this->invoice->company->verifactuEnabled()) {
                 $this->invoice->service()->sendVerifactu();
+            } elseif ($this->invoice->company->cfeUyEnabled()) {
+                $this->invoice->service()->sendCfeUy();
             }
         }
 

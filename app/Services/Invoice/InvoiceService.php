@@ -691,6 +691,18 @@ class InvoiceService
     }
 
     /**
+     * sendCfeUy
+     *
+     * @return self
+     */
+    public function sendCfeUy(): self
+    {
+        \App\Services\EDocument\Standards\CfeUy\SendToCfeUy::dispatch($this->invoice->id, $this->invoice->company);
+
+        return $this;
+    }
+
+    /**
      * cancelVerifactu
      *
      * @return self

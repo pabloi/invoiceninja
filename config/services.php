@@ -195,4 +195,17 @@ return [
         'application_secret' => env('SQUARE_APPLICATION_SECRET'),
         'environment' => env('SQUARE_ENVIRONMENT', 'production'),
     ],
+    'cfe_uy' => [
+        'enabled' => env('CFE_UY_ENABLED', false),
+        'base_url' => env('CFE_UY_BASE_URL', ''),
+        'token' => env('CFE_UY_TOKEN', ''),
+        'timeout' => env('CFE_UY_TIMEOUT', 30),
+        'verify_ssl' => env('CFE_UY_VERIFY_SSL', true),
+        'tax_map' => [
+            '22' => 3,
+            '10' => 2,
+            '0_exempt' => 1,
+            '0_none' => 6,
+        ],
+    ],
 ];

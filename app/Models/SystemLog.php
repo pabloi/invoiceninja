@@ -83,6 +83,8 @@ class SystemLog extends Model
 
     public const CATEGORY_PEPPOL = 8;
 
+    public const CATEGORY_CFE_UY = 9;
+
     /* Event IDs*/
     public const EVENT_PAYMENT_RECONCILIATION_FAILURE = 10;
 
@@ -129,6 +131,11 @@ class SystemLog extends Model
     public const EVENT_PEPPOL_SUCCESS = 73;
 
     public const EVENT_ACCOUNTING = 74;
+
+    // CFE_UY (fork): reserved range 900+ so upstream additions do not collide.
+    public const EVENT_CFE_UY_FAILURE = 900;
+
+    public const EVENT_CFE_UY_SUCCESS = 901;
 
     /*Type IDs*/
     public const TYPE_PAYPAL = 300;
@@ -212,6 +219,10 @@ class SystemLog extends Model
     public const TYPE_PEPPOL_SEND = 1100;
 
     public const TYPE_PEPPOL_RECEIVE = 1101;
+
+    public const TYPE_CFE_UY_SEND = 1200;
+
+    public const TYPE_CFE_UY_STATUS = 1201;
 
     protected $fillable = [
         'client_id',

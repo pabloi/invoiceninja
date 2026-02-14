@@ -322,6 +322,15 @@ class Activity extends StaticModel
 
     public const CANCELLED_QUOTE = 170;
 
+    // CFE_UY (fork): reserved range 900+ so upstream additions do not collide.
+    public const CFE_UY_INVOICE_SENT = 900;
+
+    public const CFE_UY_INVOICE_SENT_FAILURE = 901;
+
+    public const CFE_UY_STATUS_CHECKED = 902;
+
+    public const CFE_UY_STATUS_CHECK_FAILURE = 903;
+
     protected $casts = [
         'is_system' => 'boolean',
         'updated_at' => 'timestamp',

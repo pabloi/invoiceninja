@@ -134,6 +134,7 @@ use App\Utils\Number;
  * @property-read \App\Models\Location|null $location
  * @property-read \App\Models\Quote|null $quote
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\VerifactuLog> $verifactu_logs
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CfeLog> $cfe_logs
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\TransactionEvent> $transaction_events
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Activity> $activities
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CompanyLedger> $company_ledger
@@ -424,6 +425,11 @@ class Invoice extends BaseModel
     public function verifactu_logs(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(VerifactuLog::class)->orderBy('id', 'desc');
+    }
+
+    public function cfe_logs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CfeLog::class)->orderBy('id', 'desc');
     }
 
     public function tasks(): \Illuminate\Database\Eloquent\Relations\HasMany

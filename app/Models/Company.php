@@ -144,6 +144,7 @@ use Laracasts\Presenter\PresentableTrait;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Activity> $activities
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Location> $locations
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\VerifactuLog> $verifactu_logs
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\CfeLog> $cfe_logs
  * @property-read int|null $activities_count
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Activity> $all_activities
  * @property-read int|null $all_activities_count
@@ -442,6 +443,11 @@ class Company extends BaseModel
     public function verifactu_logs(): HasMany
     {
         return $this->hasMany(VerifactuLog::class)->orderBy('id', 'DESC');
+    }
+
+    public function cfe_logs(): HasMany
+    {
+        return $this->hasMany(CfeLog::class)->orderBy('id', 'DESC');
     }
 
     public function task_schedulers(): HasMany

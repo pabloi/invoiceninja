@@ -105,6 +105,10 @@ class ValidateEInvoiceRequest extends Request
     {
         $user = auth()->user();
 
+        if($user->company()->settings->e_invoice_type == 'CFE_UY') {
+            return new \App\Services\EDocument\Standards\Validation\CfeUy\EntityLevel();
+        }
+
         if($user->company()->settings->e_invoice_type == 'VERIFACTU') {
             return new \App\Services\EDocument\Standards\Validation\Verifactu\EntityLevel();
         }

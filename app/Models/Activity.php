@@ -295,7 +295,15 @@ class Activity extends StaticModel
     public const VERIFACTU_CANCELLATION_SENT = 156;
 
     public const VERIFACTU_CANCELLATION_SENT_FAILURE = 157;
-    
+
+    public const CFE_UY_INVOICE_SENT = 158;
+
+    public const CFE_UY_INVOICE_SENT_FAILURE = 159;
+
+    public const CFE_UY_STATUS_CHECKED = 160;
+
+    public const CFE_UY_STATUS_CHECK_FAILURE = 161;
+
     protected $casts = [
         'is_system' => 'boolean',
         'updated_at' => 'timestamp',

@@ -1062,4 +1062,18 @@ class Company extends BaseModel
             return $this->getSetting('e_invoice_type') == 'VERIFACTU';
         });
     }
+
+    /**
+     * cfeUyEnabled
+     *
+     * Returns a flag if the current company is using CFE_UY as the e-invoice provider
+     *
+     * @return bool
+     */
+    public function cfeUyEnabled(): bool
+    {
+        return once(function () {
+            return $this->getSetting('e_invoice_type') == 'CFE_UY';
+        });
+    }
 }

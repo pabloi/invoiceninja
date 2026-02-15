@@ -41,6 +41,9 @@ return new class extends Migration
             $table->string('trace_id')->nullable();
 
             $table->timestamps();
+
+            $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade');
+            $table->foreign('invoice_id')->references('id')->on('invoices')->onDelete('cascade')->onUpdate('cascade');
         });
     }
 

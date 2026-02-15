@@ -71,6 +71,19 @@ class CreateEDocument implements ShouldQueue
 
         if ($this->document instanceof Invoice) {
             switch ($e_document_type) {
+                case "CFE_UY":
+                    // Return latest signed XML from cfe_logs if available
+                    $latestLog = $this->document->cfe_logs()
+                        ->whereNotNull('xml_firmado')
+                        ->where('provider_status', 'EN')
+                        ->first();
+
+                    if ($latestLog && $latestLog->xml_firmado) {
+                        return $latestLog->xml_firmado;
+                    }
+
+                    // Fallback: return a minimal XML representation indicating CFE not yet emitted
+                    return '<?xml version="1.0" encoding="UTF-8"?><CFE_UY><status>not_emitted</status><invoice_number>' . htmlspecialchars($this->document->number ?? '') . '</invoice_number></CFE_UY>';
                 case "PEPPOL":
                     return (new Peppol($this->document))->run()->toXml();
                 case "FACT1":

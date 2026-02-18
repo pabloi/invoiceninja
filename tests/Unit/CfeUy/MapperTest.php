@@ -109,7 +109,10 @@ class MapperTest extends TestCase
 
         $this->assertEquals($this->invoice->hashed_id, $payload['external_invoice_id']);
         $this->assertArrayHasKey('tipo_cfe', $payload['document']);
+        $this->assertArrayHasKey('numero', $payload['document']);
         $this->assertArrayHasKey('rut', $payload['emisor']);
         $this->assertArrayHasKey('razon_social', $payload['receptor']);
+        $this->assertArrayHasKey('cod_pais', $payload['receptor']);
+        $this->assertArrayHasKey('doc_numero', $payload['receptor']);
     }
 }

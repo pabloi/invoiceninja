@@ -155,10 +155,11 @@ class CfeUyFeatureTest extends TestCase
         $payload = $mapper->toPayload();
 
         $this->assertEquals(111, $payload['document']['tipo_cfe']);
+        $this->assertArrayHasKey('numero', $payload['document']);
         $this->assertEquals($this->invoice->hashed_id, $payload['external_invoice_id']);
         $this->assertNotEmpty($payload['idempotency_key']);
         $this->assertNotEmpty($payload['emisor']['rut']);
-        $this->assertEquals('214100010018', $payload['receptor']['doc_receptor']);
+        $this->assertEquals('214100010018', $payload['receptor']['doc_numero']);
     }
 
     public function test_response_processor_handles_success(): void

@@ -65,10 +65,7 @@ class Mapper
      */
     public function resolveTipoCfe(): int
     {
-        $vat_number = $this->client->vat_number ?? '';
-        $id_number = $this->client->id_number ?? '';
-
-        if (strlen($vat_number) >= 12 || strlen($id_number) >= 12) {
+        if ($this->hasRuc()) {
             return 111;
         }
 
@@ -83,6 +80,7 @@ class Mapper
         return [
             'tipo_cfe' => $this->resolveTipoCfe(),
             'serie' => 'A',
+            'numero' => $this->resolveDocumentNumber(),
             'fecha_emision' => $this->invoice->date ?? now()->format('Y-m-d'),
             'forma_pago' => $this->resolveFormaPago(),
             'fecha_vencimiento' => $this->invoice->due_date,
@@ -144,9 +142,13 @@ class Mapper
      */
     private function mapReceptor(): array
     {
+        $docNumero = $this->normalizeDocNumber();
+        $countryCode = $this->client->country ? $this->client->country->iso_3166_2 : 'UY';
+
         $receptor = [
-            'tipo_doc_receptor' => $this->resolveReceptorDocType(),
-            'doc_receptor' => $this->client->vat_number ?: ($this->client->id_number ?: ''),
+            'tipo_doc' => $this->resolveReceptorDocType(),
+            'cod_pais' => $countryCode ?: 'UY',
+            'doc_numero' => $docNumero,
             'razon_social' => $this->client->present()->name(),
             'direccion' => trim(implode(', ', array_filter([
                 $this->client->address1 ?? '',
@@ -156,7 +158,7 @@ class Mapper
             ]))),
             'ciudad' => $this->client->city ?? '',
             'departamento' => $this->client->state ?? '',
-            'pais_receptor' => $this->client->country ? $this->client->country->iso_3166_3 : 'URY',
+            'pais' => $this->client->country ? $this->client->country->name : 'Uruguay',
         ];
 
         return $receptor;
@@ -168,13 +170,11 @@ class Mapper
      */
     private function resolveReceptorDocType(): int
     {
-        $vat = $this->client->vat_number ?? '';
-
-        if (strlen($vat) >= 12) {
+        if ($this->hasRuc()) {
             return 2; // RUC
         }
 
-        $id = $this->client->id_number ?? '';
+        $id = preg_replace('/\D+/', '', (string) ($this->client->id_number ?? ''));
         if (strlen($id) >= 6 && strlen($id) <= 8) {
             return 3; // CI
         }
@@ -250,5 +250,47 @@ class Mapper
             'invoice_number' => $this->invoice->number,
             'environment' => app()->environment(),
         ];
+    }
+
+    /**
+     * Resolve CFE document number (required by xml-cfe contract).
+     */
+    private function resolveDocumentNumber(): int
+    {
+        $invoiceNumber = preg_replace('/\D+/', '', (string) ($this->invoice->number ?? ''));
+
+        if ($invoiceNumber !== '' && (int) $invoiceNumber > 0) {
+            return (int) $invoiceNumber;
+        }
+
+        return max(1, (int) $this->invoice->id);
+    }
+
+    /**
+     * Normalize client document number while preserving non-empty fallback values.
+     */
+    private function normalizeDocNumber(): string
+    {
+        if ($this->hasRuc()) {
+            return preg_replace('/\D+/', '', (string) $this->client->vat_number);
+        }
+
+        $idRaw = trim((string) ($this->client->id_number ?? ''));
+        $idDigits = preg_replace('/\D+/', '', $idRaw);
+
+        if ($idDigits !== '') {
+            return $idDigits;
+        }
+
+        return $idRaw;
+    }
+
+    /**
+     * Determine whether the client has a valid-length RUC-like identifier.
+     */
+    private function hasRuc(): bool
+    {
+        $vatDigits = preg_replace('/\D+/', '', (string) ($this->client->vat_number ?? ''));
+        return strlen($vatDigits) >= 12;
     }
 }

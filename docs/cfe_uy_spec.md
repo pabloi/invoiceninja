@@ -48,7 +48,7 @@ P1–P5 call `markSent()`, which fires `EVENT_SENT_INVOICE`, and the `BaseModel`
 
 - Make `SendToCfeUy` implement `ShouldBeUnique` with `uniqueId = company_key . invoice_id`.
 - Keep the `backup.guid` check at the start of `handle()`, and re-read the invoice with a row lock (`lockForUpdate` inside a transaction) before calling xml-cfe.
-- xml-cfe must also be idempotent on `external_invoice_id` (the invoice `hashed_id`). To confirm in #xml-cfe.
+- xml-cfe must also be idempotent on `external_invoice_id`. It is not today (section 5a).
 
 ## 5. Emission job (`SendToCfeUy`)
 
@@ -56,9 +56,31 @@ Changes from the current fork:
 
 1. Success marker: set `backup.guid` only from a CAE-backed result. Today it falls back to the literal `'cfe_uy_emitted'`, which would hide a malformed response. Store `cfe_tipo`, `cfe_serie`, `cfe_numero` in `backup` as well so the PDF and UI do not need a join.
 2. Non-retryable failure (validation error, DGI rejection): write activity `CFE_UY_INVOICE_SENT_FAILURE`, keep invitations primed, do not throw. Set `backup.cfe_status = 'rejected'` with the provider message.
-3. Retryable failure: backoff `[5, 30, 240, 3600, 7200]` seconds, 5 tries, as today. After the last try, `failed()` sets `backup.cfe_status = 'failed'` and writes the failure activity.
+3. Retryable failure: backoff `[5, 30, 240, 3600, 7200]` seconds, 5 tries. Automatic retry is allowed only against the idempotent `POST /v1/cfe/emit` of section 5a. A timeout or 5xx can happen after SICFE accepted the CFE, so without idempotency a retry can emit a second CFE. After the last try, `failed()` sets `backup.cfe_status = 'failed'` and writes the failure activity.
 4. On success, after releasing emails: purge any cached PDF for the invoice so the next download includes the CAE.
 5. Activity and system-log IDs moved to a reserved range during the rebase: activities 900–903, system-log events 900–901. Upstream had reused 158–161 and 74.
+
+## 5a. xml-cfe contract
+
+Answers from #xml-cfe (2026-10-27, read from xml-cfe source):
+- The fork's `Client` calls `POST /v1/cfe/emit` and `GET /v1/cfe/status/{external_id}`. Neither exists in xml-cfe.
+- `POST /v1/cfe/process` is not idempotent. With `submit_to_sicfe: true` every call submits to SICFE again.
+- `POST /v1/invoice-ninja/emit/{invoice_id}` replays a stored success per tenant and invoice, but it fetches the invoice from Invoice Ninja itself, writes `custom_value1..4` back, can send the Invoice Ninja email, stores dry runs as success, and is not exactly-once under concurrency. It does not fit this design.
+- CFE 102 and 112 are not supported.
+- Emission data sits under `sicfe.*` (`datos_cae.nauto/dnro/hnro/fvto`, `hash_cfe`, `link_qr`, `id_cfe.serie/numero`, `codigo`). Missing SOAP fields default to empty strings or zero, so HTTP 200 alone is not success.
+
+Decision: add the two endpoints the fork already calls to xml-cfe, with these semantics.
+
+`POST /v1/cfe/emit` (header `X-Tenant-Id`, body: the `Mapper` payload, which includes `external_invoice_id`):
+1. Key: `(tenant, external_invoice_id)`. A unique row is inserted with state `pending` before SICFE is called. A concurrent second call finds the row and returns `409` with state `pending`.
+2. On SICFE acceptance the row stores the CAE data and state `emitted`. A later call with the same key returns the stored result without calling SICFE.
+3. On SICFE rejection the row stores state `rejected` and the SICFE code and message. A later call may resubmit.
+4. If the SICFE call times out or the outcome is unknown, the row stays `pending`. xml-cfe resolves it by querying SICFE for the CFE before allowing another submission.
+5. The response is flat: `success`, `status`, `message`, `trace_id`, `retryable`, `cfe {tipo, serie, numero, cae_id, cae_dnro, cae_hnro, cae_vto, hash, link_qr, imagen_qr_base64, xml_firmado}`, `provider {codigo, descripcion}`. `success` is true only when `sicfe.codigo` is the success code and `cae_id`, `serie` and `numero` are non-empty.
+
+`GET /v1/cfe/status/{external_id}` returns the same body for the stored row, or `404`.
+
+Invoice Ninja side: `ResponseProcessor` keeps parsing the flat body and treats `409 pending` as retryable. Until xml-cfe ships these endpoints, Invoice Ninja is tested against a faked HTTP client only.
 
 ## 6. PDF and template variables
 
@@ -106,7 +128,7 @@ Phase 1 (before xml-cfe supports credit notes):
 - The UI shows a warning first: the CFE stays valid at DGI, a nota de crédito must be issued separately (for example in the SICFE portal), and the admin confirms. The cancel reason is required and stored in `backup.notes`.
 - Activity log records who cancelled and the reason.
 
-Phase 2 (after xml-cfe supports 102 and 112):
+Phase 2 (after xml-cfe supports 102 and 112, which it does not as of 2026-10-27):
 - Cancel follows the Verifactu model: replicate as a negative invoice, `backup.document_type = '102'` (from e-Ticket 101) or `'112'` (from e-Factura 111), linked through `parent_invoice_id` / `child_invoice_ids`, and emitted with a reference to the original's type, series and number.
 - Partial credit notes use `modified_invoice_id`, as R1 does.
 - The admin-only restriction and warning are dropped for cancel, since the credit note is automatic.
@@ -151,5 +173,5 @@ Test instance: vps_domino, `test.domino.uy`, against the SICFE test environment.
 
 ## 12. Open items
 
-1. xml-cfe: idempotency on `external_invoice_id`, and support for CFE 102/112 credit notes (asked in #xml-cfe, 2026-10-27).
+1. xml-cfe: implement `POST /v1/cfe/emit` and `GET /v1/cfe/status/{external_id}` (section 5a). Credit notes 102/112 later, for phase 2.
 2. Invoices already sent before cutover, emitted by the xml-cfe webhook: backfill `backup.guid` and `cfe_logs` from xml-cfe so they are treated as emitted.

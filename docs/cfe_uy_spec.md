@@ -1,6 +1,6 @@
 # CFE (Uruguay) emission on send: specification
 
-Status: draft for review, 2026-10-27.
+Status: draft for review, 2026-10-27. Decisions from pablo (2026-10-27): mark sent emits; UI confirms before any CFE-emitting action; delete always blocked after emission; cancel admin-only with warning until credit notes exist.
 Branch: `cfe-uy/rebase-v5-stable` (fork rebased onto upstream `v5-stable`).
 
 ## 1. Scope
@@ -77,31 +77,62 @@ The company design must place these in the footer. The DGI layout rules for prin
 
 ## 7. Delete, cancel and reverse after emission
 
+An emitted CFE cannot be deleted at DGI. Any invoice with a CFE stays in Invoice Ninja permanently.
+
 | Action | Draft | Emitted |
 |--------|-------|---------|
 | Edit | Allowed | Blocked (add CFE to the `UpdateInvoiceRequest.php:121` lock) |
-| Delete | Allowed | Blocked with a message pointing to cancel |
+| Delete | Allowed | Always blocked |
+| Restore | Allowed | Archived invoices only (Verifactu rule in `invoiceRestorable`) |
 | Archive | Allowed | Allowed (no tax effect) |
-| Cancel | Allowed | Emits a CFE credit note (102 for e-Ticket, 112 for e-Factura) referencing the original, then marks the invoice cancelled |
-| Reverse | n/a | Same as cancel, plus Invoice Ninja's credit |
+| Cancel | Allowed | Phase 1: admin only, after a warning. Phase 2: emits a credit note |
+| Reverse | n/a | Blocked (Verifactu blocks it too, `invoiceReversable`) |
 
-Credit notes depend on xml-cfe supporting CFE 102 and 112 with a reference to the original CFE. This is the first open item to confirm in #xml-cfe. Until it is supported, cancel and reverse on emitted invoices are blocked.
+### How upstream handles this for Verifactu
 
-The hook points are the Verifactu ones: `ActionsInvoice.php` (`invoiceDeletable`, `invoiceCancellable`, `invoiceReversable`), `HandleCancellation.php:38`, `InvoiceService::markDeleted` (`:241`).
+`HandleCancellation::verifactuCancellation` (`app/Services/Invoice/HandleCancellation.php:77`):
 
-## 8. Web UI (fork `pabloi/ui`)
+1. Sets the original invoice to `STATUS_CANCELLED`.
+2. Replicates it as a new invoice with negated quantities and surcharges, `backup.document_type = 'R2'`, `backup.parent_invoice_id` and `backup.parent_invoice_number` pointing to the original, and the cancel reason in `backup.notes`.
+3. Saves the copy, marks it sent and submits it to AEAT.
+4. Appends the copy's id to the original's `backup.child_invoice_ids`.
+
+A cancellation document cannot itself be cancelled. Partial corrections (R1) are new invoices created with `modified_invoice_id` in the request (`InvoiceService::modifyVerifactuWorkflow`, `VerifactuAmountCheck`). The credit note is therefore a negative invoice linked through `backup`. Invoice Ninja's separate Credit entity is not used.
+
+### CFE design
+
+Phase 1 (before xml-cfe supports credit notes):
+- Cancel on an emitted invoice is allowed only for admins (`user->isAdmin()`), enforced in the backend.
+- The UI shows a warning first: the CFE stays valid at DGI, a nota de crédito must be issued separately (for example in the SICFE portal), and the admin confirms. The cancel reason is required and stored in `backup.notes`.
+- Activity log records who cancelled and the reason.
+
+Phase 2 (after xml-cfe supports 102 and 112):
+- Cancel follows the Verifactu model: replicate as a negative invoice, `backup.document_type = '102'` (from e-Ticket 101) or `'112'` (from e-Factura 111), linked through `parent_invoice_id` / `child_invoice_ids`, and emitted with a reference to the original's type, series and number.
+- Partial credit notes use `modified_invoice_id`, as R1 does.
+- The admin-only restriction and warning are dropped for cancel, since the credit note is automatic.
+
+Hook points: `ActionsInvoice.php` (`invoiceDeletable`, `invoiceRestorable`, `invoiceCancellable`, `invoiceReversable`), `HandleCancellation.php:38`, `InvoiceService::markDeleted` (`:241`).
+
+## 8. Web UI (fork `pabloi/invoiceninja-ui`)
 
 1. Settings > E-Invoice: add `CFE_UY` to the type options (`src/pages/settings/e-invoice/EInvoice.tsx:65`). Show xml-cfe connection status (read-only, from a new `GET /api/v1/einvoice/cfe_uy/health` endpoint).
-2. Invoice page: a CFE panel with status (not emitted, pending, emitted, rejected, failed), type, series and number, CAE, link to the DGI QR URL, and the failure message.
-3. Invoice actions: "Retry CFE" when status is rejected or failed (calls P7). Hide Delete on emitted invoices.
-4. Activity log: labels for activity types 900–903.
-5. Saving the E-Invoice page must not reset `e_invoice_type`. The backend already preserves `CFE_UY` (`UpdateCompanyRequest.php:250`). Verify with the UI fork.
+2. Confirmation dialogs, UI only, for a CFE company and a draft invoice: before "Send email", "Mark sent", "Mark paid", bulk send and save-and-send, show "This emits a CFE (e-Ticket or e-Factura) to DGI. It cannot be deleted afterwards." with confirm and cancel. The API does not ask.
+3. Invoice page: a CFE panel with status (not emitted, pending, emitted, rejected, failed), type, series and number, CAE, link to the DGI QR URL, and the failure message.
+4. Invoice actions: "Retry CFE" when status is rejected or failed (calls P7). Hide Delete on emitted invoices. Cancel shows the phase 1 warning (section 7) and is hidden for non-admins.
+5. Activity log: labels for activity types 900–903.
+6. Saving the E-Invoice page must not reset `e_invoice_type`. The backend already preserves `CFE_UY` (`UpdateCompanyRequest.php:250`). Verify with the UI fork.
 
 The UI ships inside the backend release (`public/`), so the backend build must bundle the forked UI.
 
-## 9. Build, deploy and drift check
+## 9. Build and deploy
 
-To be written once the host is confirmed. Contents: build of `pabloi/ui` into `public/`, Docker or bare deploy, migrations (`cfe_logs`), environment (`CFE_UY_BASE_URL`, `CFE_UY_TOKEN`), and a weekly check that the running version is the fork's build tag.
+The fork is deployable anywhere stock Invoice Ninja is. No host-specific code. Deliverables:
+- A release build that bundles `pabloi/invoiceninja-ui` into `public/`, published as a tagged GitHub release and a Docker image, matching upstream's packaging.
+- Migration `cfe_logs` runs with the standard `php artisan migrate`.
+- Environment: `CFE_UY_ENABLED`, `CFE_UY_BASE_URL`, `CFE_UY_TOKEN`, `CFE_UY_TIMEOUT`, `CFE_UY_VERIFY_SSL`.
+- Upstream self-update must not replace the fork. Disable it (or point it at the fork's releases) and document a weekly check that the running version string carries the fork suffix.
+
+Test instance: vps_domino, `test.domino.uy`, against the SICFE test environment. Production host is decided separately.
 
 ## 10. Cutover
 
@@ -115,12 +146,10 @@ To be written once the host is confirmed. Contents: build of `pabloi/ui` into `p
 - Feature test per send path P1–P8: invitations primed, one job dispatched (with `Queue::fake`), no email before success, emails released after success.
 - Double-dispatch test: P1 plus the event hook produces one xml-cfe call.
 - Recurring test: auto-send for a CFE company sends no email before emission.
-- Lock tests: edit, delete, cancel on emitted invoices.
+- Lock tests: edit and delete blocked on emitted invoices, cancel allowed for admins only.
 - HtmlEngine test: variables empty before emission, filled after.
 
 ## 12. Open items
 
-1. Hosting target (section 9).
-2. xml-cfe: idempotency on `external_invoice_id`, and support for CFE 102/112 credit notes.
-3. Mark sent (P6): this spec emits on mark sent, since a sent invoice is a fiscal document. Confirm.
-4. Invoices already sent before cutover, emitted by the xml-cfe webhook: backfill `backup.guid` and `cfe_logs` from xml-cfe so they are treated as emitted.
+1. xml-cfe: idempotency on `external_invoice_id`, and support for CFE 102/112 credit notes (asked in #xml-cfe, 2026-10-27).
+2. Invoices already sent before cutover, emitted by the xml-cfe webhook: backfill `backup.guid` and `cfe_logs` from xml-cfe so they are treated as emitted.

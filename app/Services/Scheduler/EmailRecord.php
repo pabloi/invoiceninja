@@ -35,6 +35,10 @@ class EmailRecord
             $entity->invitations()->update(['email_error' => 'primed']); // Flag the invitations as primed for AEAT submission
             $entity->service()->sendVerifactu();
         } 
+        elseif ($entity instanceof Invoice && $entity->company->cfeUyEnabled() && !$entity->hasSentAeat()) {
+            $entity->invitations()->update(['email_error' => 'primed']);
+            $entity->service()->markSent()->sendCfeUy();
+        }
         elseif ($entity) {
 
             $template = $this->scheduler->parameters['template'] ?? $this->scheduler->parameters['entity'];

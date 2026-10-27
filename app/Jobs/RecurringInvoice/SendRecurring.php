@@ -156,6 +156,12 @@ class SendRecurring implements ShouldQueue
      */
     private function sendRecurringEmails(Invoice $invoice): void
     {
+        if ($invoice->company->cfeUyEnabled() && !$invoice->hasSentAeat()) {
+            $invoice->invitations()->update(['email_error' => 'primed']);
+            $invoice->service()->markSent()->sendCfeUy();
+            return;
+        }
+
         if ($invoice->client->getSetting('skip_automatic_email_with_peppol') && $invoice->client->peppolSendingEnabled()) {
             nlog("Skipping automatic email for invoice {$invoice->number} - client is on Peppol network");
             return;

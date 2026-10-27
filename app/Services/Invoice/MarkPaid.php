@@ -161,7 +161,14 @@ class MarkPaid extends AbstractService
         }
 
         if ($payment->client->getSetting('send_email_on_mark_paid')) {
-            $payment->service()->sendEmail();
+            if ($this->invoice->company->cfeUyEnabled() && !$this->invoice->hasSentAeat()) {
+                $this->invoice->backup->cfe_pending_payment_ids = array_values(array_unique([
+                    ...$this->invoice->backup->cfe_pending_payment_ids, $payment->id,
+                ]));
+                $this->invoice->saveQuietly();
+            } else {
+                $payment->service()->sendEmail();
+            }
         }
 
         $this->setExchangeRate($payment);
@@ -195,6 +202,10 @@ class MarkPaid extends AbstractService
         event(new InvoiceWasPaid($this->invoice, $payment, $payment->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
 
         event('eloquent.updated: App\Models\Invoice', $this->invoice);
+
+        if ($this->invoice->company->cfeUyEnabled() && !$this->invoice->hasSentAeat()) {
+            $this->invoice->service()->sendCfeUy();
+        }
 
         return $this->invoice;
     }

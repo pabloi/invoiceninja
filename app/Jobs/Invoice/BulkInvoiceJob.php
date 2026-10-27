@@ -77,6 +77,13 @@ class BulkInvoiceJob implements ShouldQueue
                 ->cursor()
                 ->each(function ($invoice) {
 
+                    // Prime before dispatch. Returning null continues the batch.
+                    if ($invoice->company->cfeUyEnabled() && !$invoice->hasSentAeat()) {
+                        $invoice->invitations()->update(['email_error' => 'primed']);
+                        $invoice->service()->markSent()->sendCfeUy();
+                        return;
+                    }
+
                     $invoice->service()->markSent()->save();
 
                     if ($invoice->company->verifactuEnabled() && !$invoice->hasSentAeat()) {

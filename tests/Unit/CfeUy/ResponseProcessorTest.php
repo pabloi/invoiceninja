@@ -126,6 +126,31 @@ class ResponseProcessorTest extends TestCase
         $this->assertStringContains('Malformed response', $result['message']);
     }
 
+    public function test_pending_conflict_is_retryable_but_other_conflicts_are_not(): void
+    {
+        foreach (['pending' => true, 'rejected' => false] as $status => $retryable) {
+            Http::fake(['*' => Http::response(['status' => $status], 409)]);
+            $result = $this->processor->process(Http::get('https://example.com/test'));
+            $this->assertFalse($result['success']);
+            $this->assertSame($retryable, $result['retryable']);
+        }
+    }
+
+    public function test_success_requires_complete_fiscal_identification(): void
+    {
+        foreach (['cae_id', 'serie', 'numero'] as $field) {
+            foreach ([null, '', '   ', 0] as $invalid) {
+                $cfe = ['cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833];
+                $cfe[$field] = $invalid;
+                Http::fake(['*' => Http::response(['success' => true, 'cfe' => $cfe])]);
+                $result = $this->processor->process(Http::get('https://example.com/test'));
+                $this->assertFalse($result['success'], $field);
+                $this->assertTrue($result['retryable'], $field);
+                $this->assertNull($result['cfe']);
+            }
+        }
+    }
+
     private function assertStringContains(string $needle, string $haystack): void
     {
         $this->assertTrue(

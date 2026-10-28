@@ -62,6 +62,12 @@ class InvoiceBackupCast implements CastsAttributes
                 'notes' => $value->notes,
                 'e_invoice_status' => $value->e_invoice_status,
                 'e_invoice_cleared_at' => $value->e_invoice_cleared_at,
+                'cfe_tipo' => $value->cfe_tipo,
+                'cfe_serie' => $value->cfe_serie,
+                'cfe_numero' => $value->cfe_numero,
+                'cfe_status' => $value->cfe_status,
+                'cfe_error' => $value->cfe_error,
+                'cfe_pending_payment_ids' => $value->cfe_pending_payment_ids,
             ]),
         ];
     }

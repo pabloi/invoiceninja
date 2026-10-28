@@ -18,6 +18,20 @@ class MapperTest extends TestCase
         $this->makeTestData();
     }
 
+    public function test_idempotency_key_is_stable_after_invoice_save(): void
+    {
+        $key = (new Mapper($this->invoice))->toPayload()['idempotency_key'];
+        $this->assertSame($this->company->company_key . ':' . $this->invoice->id, $key);
+
+        $this->travel(2)->seconds();
+        $this->invoice->backup->cfe_status = 'pending';
+        $this->invoice->save();
+        $this->invoice->refresh();
+
+        $this->assertSame($key, (new Mapper($this->invoice))->toPayload()['idempotency_key']);
+        $this->travelBack();
+    }
+
     public function test_tipo_cfe_101_for_client_without_rut(): void
     {
         $this->client->vat_number = '';

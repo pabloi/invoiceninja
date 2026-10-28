@@ -41,7 +41,22 @@ class ResponseProcessor
             );
         }
 
-        $success = data_get($body, 'success', false);
+        $success = data_get($body, 'success') === true;
+
+        if ($success) {
+            foreach (['cae_id', 'serie', 'numero'] as $field) {
+                $value = data_get($body, "cfe.{$field}");
+                if (!is_scalar($value) || trim((string) $value) === '' || (string) $value === '0') {
+                    return $this->buildResult(
+                        success: false,
+                        status: 'ERROR',
+                        message: "Malformed CFE response: missing {$field}",
+                        retryable: true,
+                        raw: $body,
+                    );
+                }
+            }
+        }
 
         return $this->buildResult(
             success: $success,
@@ -64,7 +79,8 @@ class ResponseProcessor
     private function processHttpFailure(Response $response): array
     {
         $status = $response->status();
-        $retryable = $status >= 500 || $status === 0;
+        $retryable = $status >= 500 || $status === 0
+            || ($status === 409 && $response->json('status') === 'pending');
 
         return $this->buildResult(
             success: false,

@@ -126,6 +126,40 @@ class ResponseProcessorTest extends TestCase
         $this->assertStringContains('Malformed response', $result['message']);
     }
 
+    public function test_pending_conflict_is_retryable_but_other_conflicts_are_not(): void
+    {
+        Http::fake([
+            'https://example.com/pending' => Http::response(['status' => 'pending'], 409),
+            'https://example.com/rejected' => Http::response(['status' => 'rejected'], 409),
+        ]);
+        foreach (['pending' => true, 'rejected' => false] as $status => $retryable) {
+            $result = $this->processor->process(Http::get("https://example.com/{$status}"));
+            $this->assertFalse($result['success']);
+            $this->assertSame($retryable, $result['retryable']);
+        }
+    }
+
+    public function test_success_requires_complete_fiscal_identification(): void
+    {
+        $responses = Http::sequence();
+        foreach (['cae_id', 'serie', 'numero'] as $field) {
+            foreach ([null, '', '   ', 0] as $invalid) {
+                $cfe = ['cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833];
+                $cfe[$field] = $invalid;
+                $responses->push(['success' => true, 'cfe' => $cfe]);
+            }
+        }
+        Http::fake(['*' => $responses]);
+        foreach (['cae_id', 'serie', 'numero'] as $field) {
+            foreach ([null, '', '   ', 0] as $invalid) {
+                $result = $this->processor->process(Http::get('https://example.com/test'));
+                $this->assertFalse($result['success'], $field);
+                $this->assertTrue($result['retryable'], $field);
+                $this->assertNull($result['cfe']);
+            }
+        }
+    }
+
     private function assertStringContains(string $needle, string $haystack): void
     {
         $this->assertTrue(

@@ -115,6 +115,10 @@ class ReminderJob implements ShouldQueue
 
     private function sendReminderForInvoice(Invoice $invoice)
     {
+        if ($invoice->company->cfeUyEnabled() && !$invoice->hasSentAeat()) {
+            return;
+        }
+
         if (! $invoice->client->getSetting('send_reminders')) {
             return;
         }

@@ -24,6 +24,8 @@ class CfeUyFeatureTest extends TestCase
     {
         parent::setUp();
         $this->makeTestData();
+        Queue::fake();
+        $this->invoice->refresh();
 
         config([
             'services.cfe_uy.enabled' => true,
@@ -78,7 +80,11 @@ class CfeUyFeatureTest extends TestCase
         $this->invoice->refresh();
 
         // Verify idempotency marker was set
-        $this->assertNotEmpty($this->invoice->backup->guid);
+        $this->assertSame('90253805312', $this->invoice->backup->guid);
+        $this->assertSame('emitted', $this->invoice->backup->cfe_status);
+        $this->assertSame(101, $this->invoice->backup->cfe_tipo);
+        $this->assertSame('A', $this->invoice->backup->cfe_serie);
+        $this->assertSame(833, $this->invoice->backup->cfe_numero);
 
         // Verify CfeLog was created
         $log = CfeLog::where('invoice_id', $this->invoice->id)->first();
@@ -137,6 +143,8 @@ class CfeUyFeatureTest extends TestCase
 
         // Guid should NOT be set on failure
         $this->assertEmpty($this->invoice->backup->guid);
+        $this->assertSame('rejected', $this->invoice->backup->cfe_status);
+        $this->assertSame('RUC no registrado', $this->invoice->backup->cfe_error);
 
         // CfeLog should record the failure
         $log = CfeLog::where('invoice_id', $this->invoice->id)->first();
@@ -169,7 +177,7 @@ class CfeUyFeatureTest extends TestCase
                 'success' => true,
                 'status' => 'EN',
                 'message' => 'OK',
-                'cfe' => ['tipo' => 101],
+                'cfe' => ['tipo' => 101, 'cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833],
                 'provider' => ['codigo' => 0, 'descripcion' => 'OK'],
                 'trace_id' => 'tid',
             ], 200),
@@ -248,5 +256,63 @@ class CfeUyFeatureTest extends TestCase
         $result = $validator->checkInvoice($this->invoice);
 
         $this->assertTrue($result['passes']);
+    }
+
+    public function test_draft_job_does_not_emit_or_mark_sent(): void
+    {
+        $this->invoice->status_id = \App\Models\Invoice::STATUS_DRAFT;
+        $this->invoice->saveQuietly();
+        Http::fake();
+
+        (new SendToCfeUy($this->invoice->id, $this->company))->handle();
+
+        Http::assertNothingSent();
+        $this->assertEquals(\App\Models\Invoice::STATUS_DRAFT, $this->invoice->fresh()->status_id);
+    }
+
+    public function test_missing_cae_never_releases_mail_and_can_be_retried(): void
+    {
+        $this->invoice->invitations()->update(['email_error' => 'primed']);
+        Http::fake(['*' => Http::response(['success' => true, 'cfe' => [], 'trace_id' => 'not-a-cae'])]);
+
+        try {
+            (new SendToCfeUy($this->invoice->id, $this->company))->handle();
+            $this->fail('Missing CAE must be retried');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('missing cae_id', $e->getMessage());
+        }
+
+        $this->invoice->refresh();
+        $this->assertSame('', $this->invoice->backup->guid);
+        $this->assertSame('pending', $this->invoice->backup->cfe_status);
+        $this->assertSame(2, $this->invoice->invitations()->where('email_error', 'primed')->count());
+        Queue::assertNotPushed(\App\Services\Email\Email::class);
+        $this->assertEquals(1, CfeLog::where('invoice_id', $this->invoice->id)->count());
+    }
+
+    public function test_duplicate_job_releases_held_mail_without_reemitting(): void
+    {
+        $this->invoice->backup->guid = '90253805312';
+        $this->invoice->saveQuietly();
+        $this->invoice->invitations()->update(['email_error' => 'primed']);
+        Http::fake();
+
+        $job = new SendToCfeUy($this->invoice->id, $this->company);
+        $job->handle();
+        $job->handle();
+
+        Http::assertNothingSent();
+        Queue::assertPushed(\App\Services\Email\Email::class, 2);
+        $this->assertSame(0, $this->invoice->invitations()->where('email_error', 'primed')->count());
+    }
+
+    public function test_exhausted_job_records_failure_without_releasing_mail(): void
+    {
+        $this->invoice->invitations()->update(['email_error' => 'primed']);
+        (new SendToCfeUy($this->invoice->id, $this->company))->failed(new \RuntimeException('Unavailable'));
+
+        $this->assertSame('failed', $this->invoice->fresh()->backup->cfe_status);
+        $this->assertSame('Unavailable', $this->invoice->fresh()->backup->cfe_error);
+        Queue::assertNotPushed(\App\Services\Email\Email::class);
     }
 }

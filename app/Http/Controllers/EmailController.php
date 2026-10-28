@@ -79,6 +79,12 @@ class EmailController extends BaseController
             return $this->itemResponse($entity_obj->fresh());
         }
 
+        if ($company->cfeUyEnabled() && ($entity_obj instanceof Invoice) && !$entity_obj->hasSentAeat()) {
+            $entity_obj->invitations()->update(['email_error' => 'primed']);
+            $entity_obj->service()->markSent()->sendCfeUy();
+            return $this->itemResponse($entity_obj->fresh());
+        }
+
         if ($request->cc_email && (Ninja::isSelfHost() || $user->account->isPremium())) {
 
             foreach ($request->cc_email as $email) {

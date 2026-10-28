@@ -49,14 +49,13 @@ class Mapper
     }
 
     /**
-     * Build idempotency key from immutable-ish tuple.
+     * Build a stable key per company and invoice, including across retries.
      */
     private function buildIdempotencyKey(): string
     {
         return implode(':', [
             $this->company->company_key,
             $this->invoice->id,
-            $this->invoice->updated_at->timestamp,
         ]);
     }
 

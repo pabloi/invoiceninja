@@ -160,7 +160,23 @@ class MarkPaid extends AbstractService
             report($exception);
         }
 
-        if ($payment->client->getSetting('send_email_on_mark_paid')) {
+        $send_payment_email = $payment->client->getSetting('send_email_on_mark_paid');
+        if ($this->invoice->company->cfeUyEnabled()) {
+            // backup is a single JSON column: never append to a stale copy.
+            \DB::connection(config('database.default'))->transaction(function () use ($payment, &$send_payment_email) {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+
+                if ($send_payment_email && !$this->invoice->hasSentAeat()) {
+                    $this->invoice->backup->cfe_pending_payment_ids = array_values(array_unique([
+                        ...$this->invoice->backup->cfe_pending_payment_ids, $payment->id,
+                    ]));
+                    $this->invoice->saveQuietly();
+                    $send_payment_email = false;
+                }
+            });
+        }
+
+        if ($send_payment_email) {
             $payment->service()->sendEmail();
         }
 
@@ -195,6 +211,10 @@ class MarkPaid extends AbstractService
         event(new InvoiceWasPaid($this->invoice, $payment, $payment->company, Ninja::eventVars(auth()->user() ? auth()->user()->id : null)));
 
         event('eloquent.updated: App\Models\Invoice', $this->invoice);
+
+        if ($this->invoice->company->cfeUyEnabled() && !$this->invoice->refresh()->hasSentAeat()) {
+            $this->invoice->service()->sendCfeUy();
+        }
 
         return $this->invoice;
     }

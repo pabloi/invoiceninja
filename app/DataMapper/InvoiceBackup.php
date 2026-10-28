@@ -48,6 +48,12 @@ class InvoiceBackup implements Castable
         public ?string $notes = null,
         public ?string $e_invoice_status = null,
         public ?string $e_invoice_cleared_at = null,
+        public ?int $cfe_tipo = null,
+        public ?string $cfe_serie = null,
+        public ?int $cfe_numero = null,
+        public ?string $cfe_status = null,
+        public ?string $cfe_error = null,
+        public array $cfe_pending_payment_ids = [],
     ) {}
 
     /**
@@ -74,6 +80,12 @@ class InvoiceBackup implements Castable
             notes: $data['notes'] ?? null,
             e_invoice_status: $data['e_invoice_status'] ?? null,
             e_invoice_cleared_at: $data['e_invoice_cleared_at'] ?? null,
+            cfe_tipo: $data['cfe_tipo'] ?? null,
+            cfe_serie: $data['cfe_serie'] ?? null,
+            cfe_numero: $data['cfe_numero'] ?? null,
+            cfe_status: $data['cfe_status'] ?? null,
+            cfe_error: $data['cfe_error'] ?? null,
+            cfe_pending_payment_ids: $data['cfe_pending_payment_ids'] ?? [],
         );
     }
 

@@ -263,7 +263,7 @@ class BaseModel extends Model
         elseif (in_array($event_id, [Webhook::EVENT_SENT_INVOICE]) && $this->company->verifactuEnabled() && ($this instanceof Invoice) && $this->backup->guid == "") {
             $this->service()->sendVerifactu();
         } //Special Catch Here For CFE_UY (fork).
-        elseif (in_array($event_id, [Webhook::EVENT_SENT_INVOICE]) && $this->company->cfeUyEnabled() && ($this instanceof Invoice) && $this->backup->guid == "") {
+        if (in_array($event_id, [Webhook::EVENT_SENT_INVOICE]) && $this->company->cfeUyEnabled() && ($this instanceof Invoice) && $this->backup->guid == "") {
             $this->service()->sendCfeUy();
         }
 

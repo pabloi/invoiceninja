@@ -910,8 +910,74 @@ class HtmlEngine
 
         $data['$verifactu_qr_code'] = ['value' => $this->getVerifactuQrCode(), 'label' => ''];
 
+        foreach ($this->getCfeUyVariables() as $key => $value) {
+            $data[$key] = ['value' => $value, 'label' => ''];
+        }
+
         $arrKeysLength = array_map('strlen', array_keys($data));
         array_multisort($arrKeysLength, SORT_DESC, $data);
+
+        return $data;
+    }
+
+    private function getCfeUyVariables(): array
+    {
+        $data = array_fill_keys([
+            '$cfe_qr_code', '$cfe_cae', '$cfe_series_number', '$cfe_type',
+            '$cfe_security_code', '$cfe_legend', '$cfe_iva_al_dia',
+        ], '');
+
+        if (!($this->entity instanceof \App\Models\Invoice)
+            || $this->entity->status_id == \App\Models\Invoice::STATUS_DRAFT
+            || empty($this->entity->backup->guid)) {
+            return $data;
+        }
+
+        // Failed responses never populate cae_id. Match the committed emission,
+        // so a later failed attempt cannot replace the printable fiscal data.
+        $log = $this->entity->cfe_logs()->where('company_id', $this->company->id)
+            ->where('cae_id', $this->entity->backup->guid)->latest('id')->first();
+
+        if (!$log) {
+            return $data;
+        }
+
+        $type = (int) ($this->entity->backup->cfe_tipo ?? $log->cfe_tipo);
+        $data['$cfe_type'] = match ($type) {
+            101 => 'e-Ticket', 102 => 'Nota de crédito de e-Ticket', 103 => 'Nota de débito de e-Ticket',
+            111 => 'e-Factura', 112 => 'Nota de crédito de e-Factura', 113 => 'Nota de débito de e-Factura',
+            default => '',
+        };
+        $data['$cfe_series_number'] = e(($this->entity->backup->cfe_serie ?? $log->cfe_serie)
+            . ' ' . ($this->entity->backup->cfe_numero ?? $log->cfe_numero));
+        $data['$cfe_cae'] = e('CAE: ' . $log->cae_id . ' · Rango autorizado: '
+            . $log->cae_dnro . '–' . $log->cae_hnro . ' · Fecha de vencimiento: '
+            . ($log->cae_vto?->format('Y-m-d') ?? ''));
+        $data['$cfe_security_code'] = e(substr($log->hash ?? '', 0, 6));
+
+        $url = 'www.dgi.gub.uy';
+        if (in_array($type, [101, 102, 103], true)) {
+            $url = trim($this->company->settings->cfe_uy_verification_url ?? '');
+            if ($url === '') {
+                nlog("CFE_UY: Missing e-Ticket verification URL for company {$this->company->company_key}; using DGI legend");
+                $url = 'www.dgi.gub.uy';
+            }
+        }
+        $since = trim($this->company->settings->cfe_uy_issuer_since ?? '');
+        $data['$cfe_legend'] = ($since === '' ? '' : e('Fecha emisor: ' . $since) . '<br/>')
+            . e('Puede verificar comprobante en ' . $url);
+        $data['$cfe_iva_al_dia'] = e($this->company->settings->cfe_uy_iva_al_dia_text ?? '');
+
+        $image = preg_replace('#^data:image/png;base64,#', '', $log->imagen_qr_base64 ?? '');
+        $bytes = base64_decode($image, true);
+        if ($bytes !== false && str_starts_with($bytes, "\x89PNG\r\n\x1a\n")) {
+            $data['$cfe_qr_code'] = '<img src="data:image/png;base64,' . base64_encode($bytes) . '" alt="CFE QR Code">';
+        } elseif (!empty($log->link_qr)) {
+            $qr = \Endroid\QrCode\Builder\Builder::create()
+                ->writer(new \Endroid\QrCode\Writer\PngWriter())
+                ->data($log->link_qr)->size(300)->margin(10)->build();
+            $data['$cfe_qr_code'] = '<img src="' . $qr->getDataUri() . '" alt="CFE QR Code">';
+        }
 
         return $data;
     }

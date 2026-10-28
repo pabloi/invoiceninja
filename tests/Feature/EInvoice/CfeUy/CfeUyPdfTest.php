@@ -90,7 +90,7 @@ class CfeUyPdfTest extends TestCase
         $this->assertStringContainsString('2027-08-28', $values['$cfe_cae']);
         $this->assertSame('abc123', $values['$cfe_security_code']);
         $this->assertStringContainsString('data:image/png;base64,iVBOR', $values['$cfe_qr_code']);
-        $this->assertSame('Fecha emisor: 2020-01-02<br/>Puede verificar comprobante en https://issuer.example/verify', $values['$cfe_legend']);
+        $this->assertSame('Fecha emisor: 2020-01-02<br/>Puede verificar comprobante en: https://issuer.example/verify', $values['$cfe_legend']);
         $this->assertSame('IVA al día', $values['$cfe_iva_al_dia']);
     }
 

@@ -132,6 +132,7 @@ class SendToCfeUy implements ShouldQueue, ShouldBeUnique
         $invoice->backup->cfe_tipo = $result['cfe']['tipo'] ?? null;
         $invoice->backup->cfe_serie = $result['cfe']['serie'] ?? null;
         $invoice->backup->cfe_numero = $result['cfe']['numero'] ?? null;
+        $invoice->backup->cfe_link_qr = ($result['cfe']['link_qr'] ?? '') ?: null;
         $invoice->backup->cfe_status = 'emitted';
         $invoice->backup->cfe_error = null;
         $invoice->saveQuietly();

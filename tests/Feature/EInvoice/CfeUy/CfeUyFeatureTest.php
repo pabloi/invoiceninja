@@ -84,6 +84,7 @@ class CfeUyFeatureTest extends TestCase
         $this->assertSame('emitted', $this->invoice->backup->cfe_status);
         $this->assertSame(101, $this->invoice->backup->cfe_tipo);
         $this->assertSame('A', $this->invoice->backup->cfe_serie);
+        $this->assertSame('https://example.com/qr', $this->invoice->backup->cfe_link_qr);
         $this->assertSame(833, $this->invoice->backup->cfe_numero);
 
         // Verify CfeLog was created

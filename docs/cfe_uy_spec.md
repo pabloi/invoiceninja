@@ -42,11 +42,14 @@ Each path below is listed with its upstream location and the required CFE behavi
 
 Upstream Verifactu does not prime in P5. CFE must, because the recurring email would otherwise leave without the CAE.
 
+P2 limitation (accepted): on the first send, which emits the CFE, the email action ignores the request's custom subject, body, template and `cc_email`. The released mail uses the default invoice template. Upstream Verifactu behaves the same (`EmailController.php:76`). Later sends of an emitted invoice use the normal email path with all options.
+
 ### Double dispatch
 
 P1–P5 call `markSent()`, which fires `EVENT_SENT_INVOICE`, and the `BaseModel` hook (P6) dispatches a second `SendToCfeUy`. The job must be safe under this:
 
-- Make `SendToCfeUy` implement `ShouldBeUnique` with `uniqueId = company_key . invoice_id`.
+- Make `SendToCfeUy` implement `ShouldBeUnique` with `uniqueId = company_key . invoice_id`, and set `uniqueFor` above the total backoff span, so a lock left by a dead worker expires.
+- Code outside the job that writes `backup` (for example P8 queuing payment ids) re-reads the invoice with `lockForUpdate` first. `backup` is saved as one JSON column, so a write from a stale copy erases the job's `guid` and `cfe_*` fields.
 - Keep the `backup.guid` check at the start of `handle()`, and re-read the invoice with a row lock (`lockForUpdate` inside a transaction) before calling xml-cfe.
 - xml-cfe must also be idempotent on `external_invoice_id`. It is not today (section 5a).
 

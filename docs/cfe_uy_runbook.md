@@ -9,7 +9,7 @@ CFE_UY integrates Invoice Ninja with Uruguay's Comprobantes Fiscales Electronico
 ### Required Environment Variables
 
 ```env
-CFE_UY_ENABLED=true          # Feature flag - must be true to enable
+CFE_UY_ENABLED=true          # Kill switch. false: the job never calls xml-cfe, marks the invoice "failed" and keeps its email held; "Retry CFE" after enabling
 CFE_UY_BASE_URL=https://your-xml-cfe-service.example.com
 CFE_UY_TOKEN=your-bearer-token
 CFE_UY_TENANT_ID=your-xml-cfe-tenant  # sent as X-Tenant-Id on emit and status

@@ -72,6 +72,14 @@ class SendToCfeUy implements ShouldQueue, ShouldBeUnique
                 return null;
             }
 
+            // Kill switch: never call xml-cfe while disabled. Mail stays held until a retry.
+            if (!config('services.cfe_uy.enabled')) {
+                $invoice->backup->cfe_status = 'failed';
+                $invoice->backup->cfe_error = 'CFE emission is disabled (CFE_UY_ENABLED=false). Email is held until a retry after it is enabled.';
+                $invoice->saveQuietly();
+                return null;
+            }
+
             $invoice->backup->cfe_status = 'pending';
             $invoice->backup->cfe_error = null;
             $invoice->saveQuietly();

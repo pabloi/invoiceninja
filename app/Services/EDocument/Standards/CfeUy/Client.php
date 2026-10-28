@@ -18,6 +18,7 @@ class Client
 {
     private string $base_url;
     private string $token;
+    private string $tenant_id;
     private int $timeout;
     private bool $verify_ssl;
 
@@ -25,6 +26,7 @@ class Client
     {
         $this->base_url = rtrim(config('services.cfe_uy.base_url', ''), '/');
         $this->token = config('services.cfe_uy.token', '');
+        $this->tenant_id = (string) config('services.cfe_uy.tenant_id', '');
         $this->timeout = (int) config('services.cfe_uy.timeout', 30);
         $this->verify_ssl = (bool) config('services.cfe_uy.verify_ssl', true);
     }
@@ -43,6 +45,7 @@ class Client
             ->withHeaders([
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
+                'X-Tenant-Id' => $this->tenant_id,
             ])
             ->withOptions([
                 'verify' => $this->verify_ssl,
@@ -64,6 +67,7 @@ class Client
         return Http::withToken($this->token)
             ->withHeaders([
                 'Accept' => 'application/json',
+                'X-Tenant-Id' => $this->tenant_id,
             ])
             ->withOptions([
                 'verify' => $this->verify_ssl,

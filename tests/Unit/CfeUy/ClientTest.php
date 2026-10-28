@@ -14,6 +14,7 @@ class ClientTest extends TestCase
         config([
             'services.cfe_uy.base_url' => 'https://cfe-test.example.com',
             'services.cfe_uy.token' => 'test-token-123',
+            'services.cfe_uy.tenant_id' => 'tenant-abc',
             'services.cfe_uy.timeout' => 10,
             'services.cfe_uy.verify_ssl' => false,
         ]);
@@ -37,6 +38,7 @@ class ClientTest extends TestCase
         Http::assertSent(function ($request) {
             return $request->url() === 'https://cfe-test.example.com/v1/cfe/emit'
                 && $request->hasHeader('Authorization', 'Bearer test-token-123')
+                && $request->hasHeader('X-Tenant-Id', 'tenant-abc')
                 && $request['test'] === 'payload';
         });
     }
@@ -57,7 +59,8 @@ class ClientTest extends TestCase
 
         Http::assertSent(function ($request) {
             return str_contains($request->url(), '/v1/cfe/status/ext-123')
-                && $request->hasHeader('Authorization', 'Bearer test-token-123');
+                && $request->hasHeader('Authorization', 'Bearer test-token-123')
+                && $request->hasHeader('X-Tenant-Id', 'tenant-abc');
         });
     }
 

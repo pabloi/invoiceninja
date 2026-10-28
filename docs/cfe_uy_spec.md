@@ -159,7 +159,7 @@ The UI ships inside the backend release (`public/`), so the backend build must b
 The fork is deployable anywhere stock Invoice Ninja is. No host-specific code. Deliverables:
 - A release build that bundles `pabloi/invoiceninja-ui` into `public/`, published as a tagged GitHub release and a Docker image, matching upstream's packaging.
 - Migration `cfe_logs` runs with the standard `php artisan migrate`.
-- Environment: `CFE_UY_ENABLED`, `CFE_UY_BASE_URL`, `CFE_UY_TOKEN`, `CFE_UY_TIMEOUT`, `CFE_UY_VERIFY_SSL`.
+- Environment: `CFE_UY_ENABLED`, `CFE_UY_BASE_URL`, `CFE_UY_TOKEN`, `CFE_UY_TENANT_ID` (sent as `X-Tenant-Id`), `CFE_UY_TIMEOUT`, `CFE_UY_VERIFY_SSL`.
 - Upstream self-update must not replace the fork. Disable it (or point it at the fork's releases) and document a weekly check that the running version string carries the fork suffix.
 
 Test instance: vps_domino, `test.domino.uy`, against the SICFE test environment. Production host is decided separately.

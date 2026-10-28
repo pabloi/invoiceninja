@@ -5,6 +5,7 @@ namespace Tests\Feature\EInvoice\CfeUy;
 use Tests\TestCase;
 use Tests\MockAccountData;
 use App\Models\CfeLog;
+use App\Models\Invoice;
 use App\Models\Activity;
 use App\Models\SystemLog;
 use Illuminate\Support\Facades\Http;

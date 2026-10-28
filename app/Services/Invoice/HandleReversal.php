@@ -31,6 +31,19 @@ class HandleReversal extends AbstractService
 
     public function run()
     {
+        if ($this->invoice->company->cfeUyEnabled() || $this->invoice->hasCfeUy()) {
+            return \DB::connection(config('database.default'))->transaction(function () {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+                abort_if($this->invoice->hasCfeUy(), 422, 'An invoice with a CFE cannot be reversed.');
+                return $this->runLifecycle();
+            });
+        }
+
+        return $this->runLifecycle();
+    }
+
+    private function runLifecycle()
+    {
         /* Check again!! */
         if (! $this->invoice->invoiceReversable($this->invoice)) {
             return $this->invoice;

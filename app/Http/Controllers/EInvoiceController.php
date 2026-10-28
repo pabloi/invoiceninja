@@ -213,6 +213,25 @@ class EInvoiceController extends BaseController
         return response()->json($deliveryMap->all());
     }
 
+    public function cfeUyHealth(): JsonResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+        $base_url = rtrim(config('services.cfe_uy.base_url', ''), '/');
+        if (!config('services.cfe_uy.enabled') || $base_url === '') {
+            return response()->json(['reachable' => false, 'message' => 'CFE service is not configured.'], 503);
+        }
+        try {
+            $response = Http::acceptJson()->withToken(config('services.cfe_uy.token', ''))
+                ->withOptions(['verify' => (bool) config('services.cfe_uy.verify_ssl', true)])
+                ->timeout(min(10, max(1, (int) config('services.cfe_uy.timeout', 30))))
+                ->get($base_url . '/health');
+            $reachable = $response->successful() && $response->json('status') === 'ok';
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            $reachable = false;
+        }
+        return response()->json(['reachable' => $reachable], $reachable ? 200 : 503);
+    }
+
     public function healthcheck(HealthcheckRequest $request): JsonResponse
     {
         /** @var \App\Models\User $user */

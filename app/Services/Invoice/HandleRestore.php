@@ -35,6 +35,19 @@ class HandleRestore extends AbstractService
 
     public function run()
     {
+        if ($this->invoice->company->cfeUyEnabled() || $this->invoice->hasCfeUy()) {
+            return \DB::connection(config('database.default'))->transaction(function () {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+                return $this->runLifecycle();
+            });
+        }
+
+        return $this->runLifecycle();
+    }
+
+    private function runLifecycle()
+    {
+        abort_if($this->invoice->hasCfeUy() && $this->invoice->is_deleted, 422, 'Only archived CFE invoices can be restored.');
         $this->invoice->restore();
 
         if (! $this->invoice->is_deleted) {

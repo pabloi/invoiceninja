@@ -74,7 +74,7 @@ class TriggeredActions extends AbstractService
         }
 
         if ($this->request->has('cancel') && $this->request->input('cancel') == 'true') {
-            $this->invoice = $this->invoice->service()->handleCancellation()->save();
+            $this->invoice = $this->invoice->service()->handleCancellation($this->request->input('reason'))->save();
             $this->updated = false;
         }
 

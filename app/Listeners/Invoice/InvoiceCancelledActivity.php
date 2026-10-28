@@ -53,6 +53,9 @@ class InvoiceCancelledActivity implements ShouldQueue
         $fields->client_id = $event->invoice->client_id;
         $fields->company_id = $event->invoice->company_id;
         $fields->activity_type_id = Activity::CANCELLED_INVOICE;
+        if ($event->invoice->hasCfeUy()) {
+            $fields->notes = $event->invoice->backup->notes;
+        }
 
         $this->activity_repo->save($fields, $event->invoice, $event->event_vars);
     }

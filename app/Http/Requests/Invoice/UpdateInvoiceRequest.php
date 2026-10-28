@@ -117,6 +117,22 @@ class UpdateInvoiceRequest extends Request
         
         $validator->after(function ($validator) {
 
+            if (($this->invoice->company->cfeUyEnabled() && $this->invoice->status_id != Invoice::STATUS_DRAFT)
+                || $this->invoice->backup->cfe_status === 'pending'
+                || $this->invoice->hasCfeUy()) {
+                // Payments remain possible, but cannot carry fiscal edits with them.
+                $fiscal_fields = ['line_items', 'amount', 'status_id', 'client_id', 'date', 'due_date', 'number', 'discount',
+                    'is_amount_discount', 'tax_name1', 'tax_name2', 'tax_name3', 'tax_rate1', 'tax_rate2', 'tax_rate3',
+                    'custom_surcharge1', 'custom_surcharge2', 'custom_surcharge3', 'custom_surcharge4',
+                    'custom_surcharge_tax1', 'custom_surcharge_tax2', 'custom_surcharge_tax3', 'custom_surcharge_tax4',
+                    'exchange_rate', 'uses_inclusive_taxes'];
+                foreach ($fiscal_fields as $field) {
+                    if ($this->exists($field) && json_decode(json_encode($this->input($field)), true) != json_decode(json_encode($this->invoice->getAttribute($field)), true)) {
+                        $validator->errors()->add($field, ctrans('texts.locked_invoice'));
+                    }
+                }
+            }
+
             if (request()->input('paid') == 'true') {
             } elseif ($this->invoice->company->verifactuEnabled() && $this->invoice->status_id !== \App\Models\Invoice::STATUS_DRAFT) {
                 $validator->errors()->add('status_id', ctrans('texts.locked_invoice'));

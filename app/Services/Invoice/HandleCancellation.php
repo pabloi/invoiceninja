@@ -30,6 +30,25 @@ class HandleCancellation extends AbstractService
 
     public function run()
     {
+        if ($this->invoice->company->cfeUyEnabled() || $this->invoice->hasCfeUy()) {
+            return \DB::connection(config('database.default'))->transaction(function () {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+                return $this->runLifecycle();
+            });
+        }
+
+        return $this->runLifecycle();
+    }
+
+    private function runLifecycle()
+    {
+        if ($this->invoice->hasCfeUy()) {
+            abort_unless(auth()->user()?->isAdmin(), 403, 'Only admins can cancel an invoice with a CFE.');
+            if (!is_string($this->reason) || trim($this->reason) === '') {
+                throw \Illuminate\Validation\ValidationException::withMessages(['reason' => 'A CFE cancellation reason is required.']);
+            }
+        }
+
         /* Check again!! */
         if (! $this->invoice->invoiceCancellable($this->invoice)) {
             return $this->invoice;
@@ -41,6 +60,9 @@ class HandleCancellation extends AbstractService
 
         $adjustment = ($this->invoice->balance < 0) ? abs($this->invoice->balance) : $this->invoice->balance * -1;
 
+        if ($this->invoice->hasCfeUy()) {
+            $this->invoice->backup->notes = trim($this->reason);
+        }
         $this->backupCancellation($adjustment);
 
         //set invoice balance to 0
@@ -131,6 +153,19 @@ class HandleCancellation extends AbstractService
 
     public function reverse()
     {
+        if ($this->invoice->company->cfeUyEnabled() || $this->invoice->hasCfeUy()) {
+            return \DB::connection(config('database.default'))->transaction(function () {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+                return $this->reverseLifecycle();
+            });
+        }
+
+        return $this->reverseLifecycle();
+    }
+
+    private function reverseLifecycle()
+    {
+        abort_if($this->invoice->hasCfeUy(), 422, 'An invoice with a CFE cannot be reversed.');
         /* Will turn the negative cancellation amount to a positive adjustment*/
 
         $cancellation = $this->invoice->backup->cancellation;

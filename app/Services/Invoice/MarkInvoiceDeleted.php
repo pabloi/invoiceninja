@@ -41,8 +41,21 @@ class MarkInvoiceDeleted extends AbstractService
 
     public function run()
     {
+        if ($this->invoice->company->cfeUyEnabled() || $this->invoice->hasCfeUy()) {
+            return \DB::connection(config('database.default'))->transaction(function () {
+                $this->invoice = Invoice::withTrashed()->where('id', $this->invoice->id)->lockForUpdate()->firstOrFail();
+                return $this->runLifecycle();
+            });
+        }
+
+        return $this->runLifecycle();
+    }
+
+    private function runLifecycle()
+    {
         $this->tax_mutation_key = 'invoice_deleted:'.Str::uuid();
         $this->refreshInvoiceForDeletion();
+        abort_if($this->invoice->hasCfeUy(), 422, 'An invoice with a CFE cannot be deleted.');
 
         if ($this->invoice->company->track_inventory) {
             (new AdjustProductInventory($this->invoice->company, $this->invoice, []))->handleDeletedInvoice();

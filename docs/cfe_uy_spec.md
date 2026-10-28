@@ -145,7 +145,7 @@ Hook points: `ActionsInvoice.php` (`invoiceDeletable`, `invoiceRestorable`, `inv
 
 ## 8. Web UI (fork `pabloi/invoiceninja-ui`)
 
-1. Settings > E-Invoice: add `CFE_UY` to the type options (`src/pages/settings/e-invoice/EInvoice.tsx:65`). Show xml-cfe connection status (read-only, from a new `GET /api/v1/einvoice/cfe_uy/health` endpoint).
+1. Settings > E-Invoice: add `CFE_UY` to the type options (`src/pages/settings/e-invoice/EInvoice.tsx:65`). Show xml-cfe connection status (read-only, from a new `GET /api/v1/einvoice/cfe_uy/health` endpoint). Edit the three PDF legend settings from section 6 (`cfe_uy_verification_url`, `cfe_uy_issuer_since`, `cfe_uy_iva_al_dia_text`), saved with the page.
 2. Confirmation dialogs, UI only, for a CFE company and a draft invoice: before "Send email", "Mark sent", "Mark paid", bulk send and save-and-send, show "This emits a CFE (e-Ticket or e-Factura) to DGI. It cannot be deleted afterwards." with confirm and cancel. The API does not ask.
 3. Invoice page: a CFE panel with status (not emitted, pending, emitted, rejected, failed), type, series and number, CAE, link to the DGI QR URL, and the failure message. The panel reads `backup.cfe_tipo`, `cfe_serie`, `cfe_numero`, `cfe_status`, `cfe_error`, `cfe_link_qr` and `guid` (CAE) from the invoice API response. No extra endpoint.
 4. Invoice actions: "Retry CFE" when status is rejected or failed (calls P7). Hide Delete on emitted invoices. Cancel shows the phase 1 warning (section 7) and is hidden for non-admins.

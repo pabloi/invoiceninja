@@ -96,9 +96,14 @@ Add to `HtmlEngine` (next to `$verifactu_qr_code`), empty unless the invoice is 
 | `$cfe_series_number` | `serie` + `numero` |
 | `$cfe_type` | "e-Ticket" or "e-Factura" |
 | `$cfe_security_code` | first 6 characters of `hash` (DGI "código de seguridad") |
-| `$cfe_legend` | the fixed DGI legend ("Puede verificar comprobante en www.dgi.gub.uy", IVA al día) |
+| `$cfe_legend` | Ordinal 22 legend: "Fecha emisor" + `cfe_uy_issuer_since`, then the verification phrase. Types 101/102/103 (e-Ticket and its notes): "Puede verificar comprobante en " + `cfe_uy_verification_url`. Types 111/112/113: "Puede verificar comprobante en www.dgi.gub.uy". If an e-Ticket legend is needed and the URL setting is empty, log a warning and render the DGI phrase |
+| `$cfe_iva_al_dia` | `cfe_uy_iva_al_dia_text` verbatim, empty when unset (ordinal 23, "si corresponde": never inferred from emission) |
 
-The company design must place these in the footer. The DGI layout rules for printed representation (Formato de representación impresa) are the reference. The exact legend text is checked against the DGI spec before release.
+Source: Res. DGI 798/2012, numeral 14, ordinals 20–25, with ordinal 22 as replaced by Res. DGI 9.834/2018, numeral 3 (https://www.impo.com.uy/bases/resoluciones-dgi-interes-general/798-2012/1, read 2026-10-28).
+
+Company settings (no issuer data in code): `cfe_uy_verification_url`, `cfe_uy_issuer_since` (incorporation date, or the resolution number for issuers incorporated by resolution), `cfe_uy_iva_al_dia_text`. Values are set at deploy.
+
+The company design must place these in the footer. The DGI layout rules for printed representation (Formato de representación impresa) are the reference.
 
 ## 7. Delete, cancel and reverse after emission
 

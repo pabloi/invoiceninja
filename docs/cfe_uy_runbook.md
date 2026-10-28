@@ -12,6 +12,7 @@ CFE_UY integrates Invoice Ninja with Uruguay's Comprobantes Fiscales Electronico
 CFE_UY_ENABLED=true          # Feature flag - must be true to enable
 CFE_UY_BASE_URL=https://your-xml-cfe-service.example.com
 CFE_UY_TOKEN=your-bearer-token
+CFE_UY_TENANT_ID=your-xml-cfe-tenant  # sent as X-Tenant-Id on emit and status
 CFE_UY_TIMEOUT=30            # HTTP timeout in seconds
 CFE_UY_VERIFY_SSL=true       # Set to false only in development
 ```

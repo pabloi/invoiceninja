@@ -17,7 +17,7 @@ use App\Services\Scheduler\EmailRecord;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Bus;
 use Tests\MockAccountData;
 use Tests\TestCase;
 
@@ -41,14 +41,14 @@ class CfeUySendPathsTest extends TestCase
         $this->invoice->saveQuietly();
         config(['services.cfe_uy.base_url' => 'https://cfe-test.example.com']);
         Http::preventStrayRequests();
-        Queue::fake();
+        Bus::fake();
     }
 
     private function assertHeld(Invoice $invoice): void
     {
-        Queue::assertPushed(SendToCfeUy::class);
-        Queue::assertNotPushed(Email::class);
-        Queue::assertNotPushed(EmailEntity::class);
+        Bus::assertDispatched(SendToCfeUy::class);
+        Bus::assertNotDispatched(Email::class);
+        Bus::assertNotDispatched(EmailEntity::class);
         $this->assertGreaterThan(0, $invoice->invitations()->count());
         $this->assertSame($invoice->invitations()->count(), $invoice->invitations()->where('email_error', 'primed')->count());
         $this->assertNotEquals(Invoice::STATUS_DRAFT, $invoice->fresh()->status_id);
@@ -84,7 +84,7 @@ class CfeUySendPathsTest extends TestCase
         (new BulkInvoiceJob([$this->invoice->id, $second->id], $this->company->db, 'invoice'))->handle();
         $this->assertHeld($this->invoice);
         $this->assertHeld($second);
-        Queue::assertPushed(SendToCfeUy::class, 2);
+        Bus::assertDispatched(SendToCfeUy::class, 2);
     }
 
     public function test_scheduled_email_marks_sent_and_holds_mail(): void
@@ -111,9 +111,9 @@ class CfeUySendPathsTest extends TestCase
     public function test_mark_sent_dispatches_without_priming(): void
     {
         (new TriggeredActions($this->invoice, new Request(['mark_sent' => 'true'])))->run();
-        Queue::assertPushed(SendToCfeUy::class);
+        Bus::assertDispatched(SendToCfeUy::class);
         $this->assertSame(0, $this->invoice->invitations()->where('email_error', 'primed')->count());
-        Queue::assertNotPushed(Email::class);
+        Bus::assertNotDispatched(Email::class);
     }
 
     public function test_sent_event_dispatches_cfe_even_without_peppol(): void
@@ -121,7 +121,7 @@ class CfeUySendPathsTest extends TestCase
         $this->invoice->status_id = Invoice::STATUS_SENT;
         $this->invoice->saveQuietly();
         $this->invoice->sendEvent(Webhook::EVENT_SENT_INVOICE);
-        Queue::assertPushed(SendToCfeUy::class);
+        Bus::assertDispatched(SendToCfeUy::class);
     }
 
     public function test_retry_preserves_held_mail(): void
@@ -141,13 +141,13 @@ class CfeUySendPathsTest extends TestCase
         $this->client->saveQuietly();
         $this->invoice->unsetRelation('client');
         $this->invoice->service()->markPaid()->save();
-        Queue::assertPushed(SendToCfeUy::class);
-        Queue::assertNotPushed(EmailPayment::class);
+        Bus::assertDispatched(SendToCfeUy::class);
+        Bus::assertNotDispatched(EmailPayment::class);
         $this->assertNotEmpty($this->invoice->fresh()->backup->cfe_pending_payment_ids);
 
         Http::fake(['*' => Http::response(['success' => true, 'cfe' => ['cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833]])]);
         (new SendToCfeUy($this->invoice->id, $this->company))->handle();
-        Queue::assertPushed(EmailPayment::class, 1);
+        Bus::assertDispatched(EmailPayment::class, 1);
         $this->assertSame([], $this->invoice->fresh()->backup->cfe_pending_payment_ids);
     }
 
@@ -155,8 +155,8 @@ class CfeUySendPathsTest extends TestCase
     {
         $method = new \ReflectionMethod(ReminderJob::class, 'sendReminderForInvoice');
         $method->invoke(new ReminderJob(), $this->invoice);
-        Queue::assertNotPushed(EmailEntity::class);
-        Queue::assertNotPushed(SendToCfeUy::class);
+        Bus::assertNotDispatched(EmailEntity::class);
+        Bus::assertNotDispatched(SendToCfeUy::class);
     }
 
     public function test_save_send_and_sent_event_emit_once(): void
@@ -168,6 +168,6 @@ class CfeUySendPathsTest extends TestCase
         $job->handle();
         $job->handle();
         Http::assertSentCount(1);
-        Queue::assertPushed(Email::class, 2);
+        Bus::assertDispatched(Email::class, 2);
     }
 }

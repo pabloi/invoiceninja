@@ -39,7 +39,7 @@ class CfeUySendPathsTest extends TestCase
         $this->invoice->status_id = Invoice::STATUS_DRAFT;
         $this->invoice->backup->guid = '';
         $this->invoice->saveQuietly();
-        config(['services.cfe_uy.base_url' => 'https://cfe-test.example.com']);
+        config(['services.cfe_uy.enabled' => true, 'services.cfe_uy.base_url' => 'https://cfe-test.example.com']);
         Http::preventStrayRequests();
         Bus::fake();
     }

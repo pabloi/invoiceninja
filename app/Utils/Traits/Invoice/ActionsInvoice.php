@@ -38,6 +38,10 @@ trait ActionsInvoice
 
     public function invoiceDeletable($invoice): bool
     {
+        if ($invoice->hasCfeUy()) {
+            return false;
+        }
+
         //Cancelled invoices are not deletable if verifactu is enabled
         if ($invoice->company->verifactuEnabled() && $invoice->status_id == Invoice::STATUS_DRAFT && $invoice->is_deleted == false) {
             return true;
@@ -54,6 +58,10 @@ trait ActionsInvoice
 
     public function invoiceRestorable($invoice): bool
     {
+        if ($invoice->hasCfeUy()) {
+            return !$invoice->is_deleted && $invoice->deleted_at !== null;
+        }
+
         if ($invoice->company->verifactuEnabled() && !$invoice->is_deleted && $invoice->deleted_at) {
             return true;
         } elseif ($invoice->company->verifactuEnabled()) {
@@ -66,6 +74,10 @@ trait ActionsInvoice
 
     public function invoiceCancellable($invoice): bool
     {
+        if ($invoice->hasCfeUy() && !auth()->user()?->isAdmin()) {
+            return false;
+        }
+
         if ($invoice->company->verifactuEnabled()
        && $invoice->backup->document_type === 'F1'
        && $invoice->backup->child_invoice_ids->count() == 0
@@ -87,6 +99,10 @@ trait ActionsInvoice
 
     public function invoiceReversable($invoice): bool
     {
+        if ($invoice->hasCfeUy()) {
+            return false;
+        }
+
         if ($invoice->company->verifactuEnabled()) {
             return false;
         }

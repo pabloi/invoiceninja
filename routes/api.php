@@ -290,6 +290,7 @@ Route::group(['middleware' => ['throttle:api', 'token_auth', 'valid_json','local
 
     Route::post('einvoice/token/update', EInvoiceTokenController::class)->name('einvoice.token.update');
     Route::get('einvoice/quota', [EInvoiceController::class, 'quota'])->name('einvoice.quota');
+    Route::get('einvoice/cfe_uy/health', [EInvoiceController::class, 'cfeUyHealth'])->name('einvoice.cfe_uy.health');
     Route::get('einvoice/health_check', [EInvoiceController::class, 'healthcheck'])->name('einvoice.healthcheck');
     Route::get('einvoice/delivery_map', [EInvoiceController::class, 'deliveryMap'])->name('einvoice.delivery_map');
 

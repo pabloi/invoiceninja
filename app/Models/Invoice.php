@@ -973,6 +973,14 @@ class Invoice extends BaseModel
         return (string) count($schedule_array);
     }
 
+    public function hasCfeUy(): bool
+    {
+        return $this->backup->cfe_status === 'emitted'
+            || ($this->backup->cfe_tipo !== null && strlen($this->backup->guid ?? '') > 0)
+            || ($this->company->cfeUyEnabled() && $this->hasSentAeat())
+            || $this->cfe_logs()->whereNotNull('cae_id')->where('cae_id', '!=', '')->exists();
+    }
+
     public function hasSentAeat(): bool
     {
         return $this->backup->guid != "";

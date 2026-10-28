@@ -50,6 +50,44 @@ class CfeUyLifecycleTest extends TestCase
         $this->assertNotEquals('2020-01-01', $this->invoice->fresh()->date);
     }
 
+    public function test_full_invoice_round_trip_allows_notes_only_edit(): void
+    {
+        $payload = $this->getJson('/api/v1/invoices/'.$this->invoice->hashed_id)
+            ->assertOk()->json('data');
+        $payload['public_notes'] = 'Updated delivery instructions';
+
+        $this->putJson('/api/v1/invoices/'.$this->invoice->hashed_id, $payload)
+            ->assertOk();
+        $this->assertSame('Updated delivery instructions', $this->invoice->fresh()->public_notes);
+        $this->assertSame('90253805312', $this->invoice->fresh()->backup->guid);
+    }
+
+    public function test_sent_cfe_invoice_is_locked_before_job_starts(): void
+    {
+        $this->invoice->backup->guid = '';
+        $this->invoice->backup->cfe_status = null;
+        $this->invoice->backup->cfe_tipo = null;
+        $this->invoice->saveQuietly();
+        $this->putJson('/api/v1/invoices/'.$this->invoice->hashed_id, ['discount' => 99])
+            ->assertStatus(422)->assertJsonValidationErrors('discount');
+    }
+
+    public function test_pending_invoice_is_locked_even_if_company_setting_changes(): void
+    {
+        $this->invoice->backup->guid = '';
+        $this->invoice->backup->cfe_status = 'pending';
+        $this->invoice->backup->cfe_tipo = null;
+        $this->invoice->saveQuietly();
+        $settings = $this->company->settings;
+        $settings->e_invoice_type = '';
+        $this->company->settings = $settings;
+        $this->company->saveQuietly();
+
+        $this->putJson('/api/v1/invoices/'.$this->invoice->hashed_id, ['discount' => 99])
+            ->assertStatus(422)->assertJsonValidationErrors('discount');
+        $this->assertSame('pending', $this->invoice->fresh()->backup->cfe_status);
+    }
+
     public function test_payment_without_fiscal_edits_is_allowed(): void
     {
         $this->putJson('/api/v1/invoices/'.$this->invoice->hashed_id.'?paid=true', [])

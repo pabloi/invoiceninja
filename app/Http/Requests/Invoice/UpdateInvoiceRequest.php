@@ -117,7 +117,9 @@ class UpdateInvoiceRequest extends Request
         
         $validator->after(function ($validator) {
 
-            if ($this->invoice->hasCfeUy()) {
+            if (($this->invoice->company->cfeUyEnabled() && $this->invoice->status_id != Invoice::STATUS_DRAFT)
+                || $this->invoice->backup->cfe_status === 'pending'
+                || $this->invoice->hasCfeUy()) {
                 // Payments remain possible, but cannot carry fiscal edits with them.
                 $fiscal_fields = ['line_items', 'amount', 'status_id', 'client_id', 'date', 'due_date', 'number', 'discount',
                     'is_amount_discount', 'tax_name1', 'tax_name2', 'tax_name3', 'tax_rate1', 'tax_rate2', 'tax_rate3',

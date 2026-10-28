@@ -151,6 +151,42 @@ class CfeUySendPathsTest extends TestCase
         $this->assertSame([], $this->invoice->fresh()->backup->cfe_pending_payment_ids);
     }
 
+    public function test_mark_paid_preserves_cfe_emitted_before_receipt_is_queued(): void
+    {
+        $settings = $this->client->settings;
+        $settings->send_email_on_mark_paid = true;
+        $this->client->settings = $settings;
+        $this->client->saveQuietly();
+        $this->invoice->unsetRelation('client');
+
+        Http::fake(['*' => Http::response(['success' => true, 'cfe' => ['cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833]])]);
+        $emitted = false;
+        // The relationship is inserted after MarkPaid loads and saves its invoice,
+        // but before it decides whether to queue the payment receipt.
+        \Illuminate\Support\Facades\DB::listen(function ($query) use (&$emitted) {
+            if (!$emitted && str_starts_with(strtolower($query->sql), 'insert into `paymentables`')) {
+                $emitted = true;
+                (new SendToCfeUy($this->invoice->id, $this->company))->handle();
+            }
+        });
+
+        $this->invoice->service()->markPaid()->save();
+
+        $this->assertTrue($emitted);
+        $fresh = $this->invoice->fresh();
+        $this->assertSame('90253805312', $fresh->backup->guid);
+        $this->assertSame('emitted', $fresh->backup->cfe_status);
+        $this->assertSame([], $fresh->backup->cfe_pending_payment_ids);
+        Bus::assertDispatched(EmailPayment::class, 1);
+        Bus::assertNotDispatched(SendToCfeUy::class);
+    }
+
+    public function test_unique_lock_expires_after_the_retry_backoff_span(): void
+    {
+        $job = new SendToCfeUy($this->invoice->id, $this->company);
+        $this->assertGreaterThan(array_sum($job->backoff()), $job->uniqueFor);
+    }
+
     public function test_reminder_does_nothing_before_emission(): void
     {
         $method = new \ReflectionMethod(ReminderJob::class, 'sendReminderForInvoice');

@@ -37,6 +37,8 @@ class SendToCfeUy implements ShouldQueue, ShouldBeUnique
 
     public $tries = 5;
 
+    public $uniqueFor = 12600;
+
     public $deleteWhenMissingModels = true;
 
     public function __construct(private int $invoice_id, private Company $company)

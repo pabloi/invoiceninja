@@ -128,9 +128,12 @@ class ResponseProcessorTest extends TestCase
 
     public function test_pending_conflict_is_retryable_but_other_conflicts_are_not(): void
     {
+        Http::fake([
+            'https://example.com/pending' => Http::response(['status' => 'pending'], 409),
+            'https://example.com/rejected' => Http::response(['status' => 'rejected'], 409),
+        ]);
         foreach (['pending' => true, 'rejected' => false] as $status => $retryable) {
-            Http::fake(['*' => Http::response(['status' => $status], 409)]);
-            $result = $this->processor->process(Http::get('https://example.com/test'));
+            $result = $this->processor->process(Http::get("https://example.com/{$status}"));
             $this->assertFalse($result['success']);
             $this->assertSame($retryable, $result['retryable']);
         }
@@ -138,11 +141,17 @@ class ResponseProcessorTest extends TestCase
 
     public function test_success_requires_complete_fiscal_identification(): void
     {
+        $responses = Http::sequence();
         foreach (['cae_id', 'serie', 'numero'] as $field) {
             foreach ([null, '', '   ', 0] as $invalid) {
                 $cfe = ['cae_id' => '90253805312', 'serie' => 'A', 'numero' => 833];
                 $cfe[$field] = $invalid;
-                Http::fake(['*' => Http::response(['success' => true, 'cfe' => $cfe])]);
+                $responses->push(['success' => true, 'cfe' => $cfe]);
+            }
+        }
+        Http::fake(['*' => $responses]);
+        foreach (['cae_id', 'serie', 'numero'] as $field) {
+            foreach ([null, '', '   ', 0] as $invalid) {
                 $result = $this->processor->process(Http::get('https://example.com/test'));
                 $this->assertFalse($result['success'], $field);
                 $this->assertTrue($result['retryable'], $field);

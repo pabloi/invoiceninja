@@ -964,6 +964,9 @@ class HtmlEngine
             }
         }
         $since = trim($this->company->settings->cfe_uy_issuer_since ?? '');
+        if ($since === '') {
+            nlog("CFE_UY: Missing Fecha emisor for company {$this->company->company_key}; configure cfe_uy_issuer_since before cutover");
+        }
         $data['$cfe_legend'] = ($since === '' ? '' : e('Fecha emisor: ' . $since) . '<br/>')
             . e('Puede verificar comprobante en ' . $url);
         $data['$cfe_iva_al_dia'] = e($this->company->settings->cfe_uy_iva_al_dia_text ?? '');

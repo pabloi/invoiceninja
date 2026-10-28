@@ -481,6 +481,12 @@ class CompanySettings extends BaseSettings
 
     public $e_invoice_type = 'EN16931'; //verifactu
 
+    public $cfe_uy_verification_url = '';
+
+    public $cfe_uy_issuer_since = '';
+
+    public $cfe_uy_iva_al_dia_text = '';
+
     public $e_quote_type = 'OrderX_Comfort';
 
     public $default_expense_payment_type_id = '0';
@@ -587,6 +593,9 @@ class CompanySettings extends BaseSettings
         'classification'                     => 'string',
         'default_expense_payment_type_id'    => 'string',
         'e_invoice_type'                     => 'string',
+        'cfe_uy_verification_url'            => 'string',
+        'cfe_uy_issuer_since'                => 'string',
+        'cfe_uy_iva_al_dia_text'             => 'string',
         'e_invoice_forward_email'            => 'string',
         'skip_automatic_email_with_peppol'   => 'bool',
         'mailgun_endpoint'                   => 'string',

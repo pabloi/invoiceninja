@@ -67,6 +67,7 @@ class InvoiceBackupCast implements CastsAttributes
                 'cfe_numero' => $value->cfe_numero,
                 'cfe_status' => $value->cfe_status,
                 'cfe_error' => $value->cfe_error,
+                'cfe_link_qr' => $value->cfe_link_qr,
                 'cfe_pending_payment_ids' => $value->cfe_pending_payment_ids,
             ]),
         ];

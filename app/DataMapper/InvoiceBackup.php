@@ -53,6 +53,7 @@ class InvoiceBackup implements Castable
         public ?int $cfe_numero = null,
         public ?string $cfe_status = null,
         public ?string $cfe_error = null,
+        public ?string $cfe_link_qr = null,
         public array $cfe_pending_payment_ids = [],
     ) {}
 
@@ -85,6 +86,7 @@ class InvoiceBackup implements Castable
             cfe_numero: $data['cfe_numero'] ?? null,
             cfe_status: $data['cfe_status'] ?? null,
             cfe_error: $data['cfe_error'] ?? null,
+            cfe_link_qr: $data['cfe_link_qr'] ?? null,
             cfe_pending_payment_ids: $data['cfe_pending_payment_ids'] ?? [],
         );
     }

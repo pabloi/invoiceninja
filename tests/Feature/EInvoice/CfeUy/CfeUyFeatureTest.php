@@ -100,6 +100,26 @@ class CfeUyFeatureTest extends TestCase
         $this->assertEquals('trace-success-123', $log->trace_id);
     }
 
+    public function test_disabled_flag_blocks_emission_and_holds_mail(): void
+    {
+        config(['services.cfe_uy.enabled' => false]);
+        $this->invoice->status_id = Invoice::STATUS_SENT;
+        $this->invoice->saveQuietly();
+        $this->invoice->invitations()->update(['email_error' => 'primed']);
+
+        Http::fake();
+
+        (new SendToCfeUy($this->invoice->id, $this->invoice->company))->handle();
+
+        Http::assertNothingSent();
+        $this->invoice->refresh();
+        $this->assertSame('', $this->invoice->backup->guid ?? '');
+        $this->assertSame('failed', $this->invoice->backup->cfe_status);
+        $this->assertStringContainsString('CFE_UY_ENABLED', $this->invoice->backup->cfe_error);
+        $this->assertSame(0, $this->invoice->invitations()->where('email_error', '!=', 'primed')->count());
+        $this->assertEquals(0, CfeLog::where('invoice_id', $this->invoice->id)->count());
+    }
+
     public function test_duplicate_send_is_idempotent(): void
     {
         // Pre-set the guid to simulate already emitted

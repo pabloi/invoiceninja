@@ -955,21 +955,17 @@ class HtmlEngine
             . ($log->cae_vto?->format('Y-m-d') ?? ''));
         $data['$cfe_security_code'] = e(substr($log->hash ?? '', 0, 6));
 
-        $url = 'www.dgi.gub.uy';
-        if (in_array($type, [101, 102, 103], true)) {
-            $url = trim($this->company->settings->cfe_uy_verification_url ?? '');
-            if ($url === '') {
-                nlog("CFE_UY: Missing e-Ticket verification URL for company {$this->company->company_key}; using DGI legend");
-                $url = 'www.dgi.gub.uy';
-            }
+        // Matches the provider-certified e-Ticket layout: DGI site unless an
+        // e-Ticket verification URL is configured. Fecha emisor only if set.
+        $url = 'https://dgi.gub.uy/';
+        $custom = trim($this->company->settings->cfe_uy_verification_url ?? '');
+        if ($custom !== '' && in_array($type, [101, 102, 103], true)) {
+            $url = $custom;
         }
         $since = trim($this->company->settings->cfe_uy_issuer_since ?? '');
-        if ($since === '') {
-            nlog("CFE_UY: Missing Fecha emisor for company {$this->company->company_key}; configure cfe_uy_issuer_since before cutover");
-        }
         $data['$cfe_legend'] = ($since === '' ? '' : e('Fecha emisor: ' . $since) . '<br/>')
-            . e('Puede verificar comprobante en ' . $url);
-        $data['$cfe_iva_al_dia'] = e($this->company->settings->cfe_uy_iva_al_dia_text ?? '');
+            . e('Puede verificar comprobante en: ' . $url);
+        $data['$cfe_iva_al_dia'] = e($this->company->settings->cfe_uy_iva_al_dia_text ?? 'IVA al día');
 
         $image = preg_replace('#^data:image/png;base64,#', '', $log->imagen_qr_base64 ?? '');
         $bytes = base64_decode($image, true);

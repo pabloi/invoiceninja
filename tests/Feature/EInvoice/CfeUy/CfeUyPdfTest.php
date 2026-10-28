@@ -94,12 +94,12 @@ class CfeUyPdfTest extends TestCase
         $this->assertSame('IVA al día', $values['$cfe_iva_al_dia']);
     }
 
-    public function test_eticket_missing_url_falls_back_and_iva_defaults_empty(): void
+    public function test_eticket_without_url_uses_dgi_and_iva_defaults_to_ticket_text(): void
     {
         $this->emitted();
         $values = $this->values();
-        $this->assertSame('Puede verificar comprobante en www.dgi.gub.uy', $values['$cfe_legend']);
-        $this->assertSame('', $values['$cfe_iva_al_dia']);
+        $this->assertSame('Puede verificar comprobante en: https://dgi.gub.uy/', $values['$cfe_legend']);
+        $this->assertSame('IVA al día', $values['$cfe_iva_al_dia']);
     }
 
     public function test_efactura_uses_dgi_and_generates_qr_from_link(): void
@@ -113,15 +113,16 @@ class CfeUyPdfTest extends TestCase
         $this->company->saveQuietly();
         $values = $this->values();
         $this->assertSame('e-Factura', $values['$cfe_type']);
-        $this->assertSame('Puede verificar comprobante en www.dgi.gub.uy', $values['$cfe_legend']);
+        $this->assertSame('Puede verificar comprobante en: https://dgi.gub.uy/', $values['$cfe_legend']);
         $this->assertStringContainsString('data:image/png;base64,', $values['$cfe_qr_code']);
     }
 
     public function test_settings_defaults_and_casts_include_footer_fields(): void
     {
         $defaults = CompanySettings::defaults();
-        foreach (['cfe_uy_verification_url', 'cfe_uy_issuer_since', 'cfe_uy_iva_al_dia_text'] as $field) {
-            $this->assertSame('', $defaults->{$field});
+        $expected = ['cfe_uy_verification_url' => '', 'cfe_uy_issuer_since' => '', 'cfe_uy_iva_al_dia_text' => 'IVA al día'];
+        foreach ($expected as $field => $default) {
+            $this->assertSame($default, $defaults->{$field});
             $this->assertSame('string', CompanySettings::$casts[$field]);
         }
     }
@@ -136,8 +137,8 @@ class CfeUyPdfTest extends TestCase
         foreach ([102, 103, 112, 113] as $type) {
             $this->invoice->backup->cfe_tipo = $type;
             $this->invoice->saveQuietly();
-            $url = $type < 110 ? 'issuer.example' : 'www.dgi.gub.uy';
-            $this->assertSame('Puede verificar comprobante en ' . $url, $this->values()['$cfe_legend']);
+            $url = $type < 110 ? 'issuer.example' : 'https://dgi.gub.uy/';
+            $this->assertSame('Puede verificar comprobante en: ' . $url, $this->values()['$cfe_legend']);
         }
     }
 

@@ -485,7 +485,7 @@ class CompanySettings extends BaseSettings
 
     public $cfe_uy_issuer_since = '';
 
-    public $cfe_uy_iva_al_dia_text = '';
+    public $cfe_uy_iva_al_dia_text = 'IVA al día';
 
     public $e_quote_type = 'OrderX_Comfort';
 

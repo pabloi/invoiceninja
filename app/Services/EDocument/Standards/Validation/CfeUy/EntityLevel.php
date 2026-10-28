@@ -14,6 +14,8 @@ namespace App\Services\EDocument\Standards\Validation\CfeUy;
 
 use App\Models\Client;
 use App\Models\Company;
+use App\Models\Credit;
+use App\Models\RecurringInvoice;
 use App\Models\Invoice;
 use App\Services\EDocument\Standards\Validation\EntityLevelInterface;
 
@@ -85,6 +87,23 @@ class EntityLevel implements EntityLevelInterface
         }
 
         return $this->errors;
+    }
+
+    public function checkRecurringInvoice(RecurringInvoice $recurring_invoice): array
+    {
+        return ['passes' => true];
+    }
+
+    // CFE credit-note validation is deferred until types 102/112 are supported.
+    public function checkCredit(Credit $credit): array
+    {
+        return [
+            'passes' => true,
+            'invoice' => [],
+            'credit' => [],
+            'client' => [],
+            'company' => [],
+        ];
     }
 
     public function checkInvoice(Invoice $invoice): array
